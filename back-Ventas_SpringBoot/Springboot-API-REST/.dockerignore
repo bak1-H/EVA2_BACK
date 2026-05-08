@@ -1,0 +1,21 @@
+# Ignora archivos de configuración locales
+.env
+*.iml
+.idea/
+*.log
+
+# Ignora dependencias compiladas
+target/
+.settings/
+
+# Ignora control de versiones
+.git/
+.gitignore
+.gitattributes
+
+# Ignora archivos temporales
+*.swp
+*~
+
+# Ignora tests (no necesarios en build de producción)
+src/test/

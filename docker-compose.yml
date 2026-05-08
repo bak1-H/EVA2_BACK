@@ -1,0 +1,38 @@
+services:
+  # --- PROYECTO BACKEND 1 (Ventas) ---
+  backend-ventas:
+    build: 
+    context: ./back-Ventas_SpringBoot/Springboot-API-REST
+    dockerfile: Dockerfile
+    container_name: api-ventas
+    restart: always
+    environment:
+      - SERVER_PORT=8080
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=3306
+      - DB_NAME=ventas_db
+    ports:
+      - "8081:8080" # Acceso externo vía puerto 8081
+    networks:
+      - app_network
+
+  # --- PROYECTO BACKEND 2 (Despacho) ---
+  backend-despacho:
+    build: 
+    context: ./back-Despachos_SpringBoot/Springboot-API-REST
+    dockerfile: Dockerfile
+    container_name: api-despacho
+    restart: always
+    environment:
+      - SERVER_PORT=8080
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=3306
+      - DB_NAME=despacho_db
+    ports:
+      - "8082:8080" # Acceso externo vía puerto 8082
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
