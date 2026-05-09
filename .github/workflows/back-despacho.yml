@@ -39,7 +39,7 @@ jobs:
           ECR_REPOSITORY: back-despachos # Asegúrate de que este repo exista en tu ECR
           IMAGE_TAG: latest
         run: |
-          cd back-Despachos_SpringBoot
+          cd back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
