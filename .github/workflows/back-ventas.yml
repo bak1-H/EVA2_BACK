@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'back-ventas/**' # Solo se activa si hay cambios en esta carpeta
+      - 'back-Ventas_SpringBoot/**' # Solo se activa si hay cambios en esta carpeta
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
