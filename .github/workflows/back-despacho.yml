@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'back-despachos/**' # Solo se activa si cambias algo en la carpeta de despachos
+      - 'back-Despachos_SpringBoot/**' # Solo se activa si cambias algo en la carpeta de despachos
 
 jobs:
   build-and-deploy:
