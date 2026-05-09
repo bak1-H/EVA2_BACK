@@ -1,0 +1,59 @@
+name: Deploy Despachos Backend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'back-despachos/**' # Solo se activa si cambias algo en la carpeta de despachos
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Obtener el código
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # 2. Configurar credenciales de AWS
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 3. Login en Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: 'true'
+
+      # 4. Construir y subir la imagen de Despachos
+      - name: Build and Push Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: back-despachos # Asegúrate de que este repo exista en tu ECR
+          IMAGE_TAG: latest
+        run: |
+          cd back-despachos
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      # 5. Desplegar en la instancia EC2 de Backend
+      - name: Deploy to EC2 via SSM
+        run: |
+          aws ssm send-command \
+            --instance-ids ${{ secrets.EC2_BACK_INSTANCE_ID }} \
+            --document-name "AWS-RunShellScript" \
+            --comment "Actualizando microservicio de Despachos" \
+            --parameters 'commands=[
+              "aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}",
+              "docker pull ${{ steps.login-ecr.outputs.registry }}/back-despachos:latest",
+              "docker stop back-despachos-container || true",
+              "docker rm back-despachos-container || true",
+              "docker run -d --name back-despachos-container -p 8081:8081 ${{ steps.login-ecr.outputs.registry }}/back-despachos:latest"
+            ]'
