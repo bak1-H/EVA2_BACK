@@ -14,8 +14,8 @@ USER apidespacho:apidespacho
 WORKDIR /app
 
 # Puerto interno por defecto del contenedor
-ENV SERVER_PORT=8081
+ENV SERVER_PORT=8082
 
 COPY --from=builder /app/target/*.jar app.jar
-EXPOSE 8081
+EXPOSE 8082
 ENTRYPOINT ["java", "-jar", "app.jar"]
