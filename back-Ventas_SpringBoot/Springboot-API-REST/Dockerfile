@@ -30,6 +30,6 @@ WORKDIR /app
 COPY --from=builder /app/target/*.jar app.jar
 
 # Puerto estándar de Spring Boot
-EXPOSE 8080
-# Usamos ENTRYPOINT para permitir pasar opciones de JVM desde variables de entorno (JAVA_OPTS)
+EXPOSE 8081
+#sUsamos ENTRYPOINT para permitir pasar opciones de JVM desde variables de entorno (JAVA_OPTS)
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
