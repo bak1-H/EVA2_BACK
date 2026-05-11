@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'back-ventas/**' # Solo se activa si hay cambios en esta carpeta
+      - 'back-Ventas_SpringBoot/**' # Solo se activa si hay cambios en esta carpeta
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -36,7 +36,7 @@ jobs:
           IMAGE_TAG: latest
         run: |
           # Entramos a la carpeta del proyecto antes de buildear
-          cd back-ventas
+          cd back-Ventas_SpringBoot/Springboot-API-REST
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
