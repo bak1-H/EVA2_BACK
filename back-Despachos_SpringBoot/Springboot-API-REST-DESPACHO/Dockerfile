@@ -12,6 +12,10 @@ FROM eclipse-temurin:17-jre
 RUN groupadd -r apidespacho && useradd -r -g apidespacho apidespacho
 USER apidespacho:apidespacho
 WORKDIR /app
+
+# Puerto interno por defecto del contenedor
+ENV SERVER_PORT=8082
+
 COPY --from=builder /app/target/*.jar app.jar
 EXPOSE 8082
 ENTRYPOINT ["java", "-jar", "app.jar"]
