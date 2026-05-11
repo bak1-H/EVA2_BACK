@@ -13,8 +13,8 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**") // Aplica a todos los endpoints
-                        .allowedOrigins("*") // Permite cualquier origen
-                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Métodos permitidos
+                    .allowedOrigins("http://54.198.205.97") // Origen frontend EC2
+                    .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH") // Métodos permitidos
                         .allowedHeaders("*") // Permite cualquier cabecera
                         .allowCredentials(false); // Deshabilita credenciales compartidas (true si necesitas cookies o autenticación)
             }
