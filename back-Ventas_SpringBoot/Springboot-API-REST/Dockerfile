@@ -25,11 +25,14 @@ USER apiventas:apiventas
 
 WORKDIR /app
 
+# Puerto interno por defecto del contenedor
+ENV SERVER_PORT=8081
+
 # Copiar solo el JAR resultante desde la etapa anterior
 # Buscamos el jar que no sea el '-sources.jar' o '-javadoc.jar'
 COPY --from=builder /app/target/*.jar app.jar
 
 # Puerto estándar de Spring Boot
-EXPOSE 8080
+EXPOSE 8081
 # Usamos ENTRYPOINT para permitir pasar opciones de JVM desde variables de entorno (JAVA_OPTS)
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
