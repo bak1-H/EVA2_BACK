@@ -55,5 +55,5 @@ jobs:
               "docker pull ${{ steps.login-ecr.outputs.registry }}/back-despachos:latest",
               "docker stop back-despachos-container || true",
               "docker rm back-despachos-container || true",
-              "docker run -d --name back-despachos-container -p 8081:8081 ${{ steps.login-ecr.outputs.registry }}/back-despachos:latest"
+              "docker run -d --name back-despachos-container -p 8082:8081 -e SERVER_PORT=8081 ${{ steps.login-ecr.outputs.registry }}/back-despachos:latest"
             ]'
