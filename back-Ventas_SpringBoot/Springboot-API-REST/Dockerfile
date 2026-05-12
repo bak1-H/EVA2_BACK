@@ -2,7 +2,7 @@
 # ETAPA 1: Builder (Compilación)
 FROM eclipse-temurin:17-jdk-alpine AS builder
 WORKDIR /app
-# 1. Copiar el wrapper de Maven y dependencias primero para cachear capas
+# 1. Copiar el wrapper de Maven y dependencias primero para cachear capa
 COPY .mvn/ .mvn
 COPY mvnw pom.xml ./
 
