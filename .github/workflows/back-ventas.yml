@@ -50,5 +50,5 @@ jobs:
               "docker pull ${{ steps.login-ecr.outputs.registry }}/back-ventas:latest",
               "docker stop back-ventas-container || true",
               "docker rm back-ventas-container || true",
-              "docker run -d --name back-ventas-container -p 8080:8080 ${{ steps.login-ecr.outputs.registry }}/back-ventas:latest"
+              "docker run -d --name back-ventas-container -p 8081:8081 -e SERVER_PORT=8081 ${{ steps.login-ecr.outputs.registry }}/back-ventas:latest"
             ]'
