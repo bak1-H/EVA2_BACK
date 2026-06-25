@@ -68,7 +68,7 @@ jobs:
                 {"name": "SERVER_PORT", "value": "8080"},
                 {"name": "SPRING_DATASOURCE_URL", "value": "jdbc:mysql://innovatech-mysql.cotyuun7ptxj.us-east-1.rds.amazonaws.com:3306/despacho_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true"},
                 {"name": "SPRING_DATASOURCE_USERNAME", "value": "appuser"},
-                {"name": "SPRING_DATASOURCE_PASSWORD", "value": "appuser123"},
+                {"name": "SPRING_DATASOURCE_PASSWORD", "value": "appuser"},
                 {"name": "SPRING_JPA_HIBERNATE_DDL_AUTO", "value": "update"}
               ],
               "logConfiguration": {
