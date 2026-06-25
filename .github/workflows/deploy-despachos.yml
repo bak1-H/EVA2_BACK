@@ -1,0 +1,157 @@
+name: Deploy Despachos to ECS Fargate
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-despachos:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, Tag, and Push Despachos Image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          aws ecr describe-repositories --repository-names innovatech-despachos 2>/dev/null || \
+            aws ecr create-repository --repository-name innovatech-despachos
+          cd back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
+          docker build -t $ECR_REGISTRY/innovatech-despachos:latest .
+          docker push $ECR_REGISTRY/innovatech-despachos:latest
+
+      - name: Setup AWS Infrastructure and Deploy Despachos Service
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          VPC_ID=$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query 'Vpcs[0].VpcId' --output text)
+          SUBNETS=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" --query 'Subnets[*].SubnetId' --output text | tr '\t' ',')
+
+          # Reusar el mismo security group del cluster ECS
+          SG_ID=$(aws ec2 describe-security-groups \
+            --filters "Name=vpc-id,Values=$VPC_ID" \
+            --query 'SecurityGroups[?GroupName!=`default`] | [0].GroupId' --output text)
+
+          echo "Account: $ACCOUNT_ID | VPC: $VPC_ID | SG: $SG_ID"
+
+          # Registrar task definition
+          cat > /tmp/despachos-td.json << TASKDEF
+          {
+            "family": "innovatech-despachos",
+            "networkMode": "awsvpc",
+            "requiresCompatibilities": ["FARGATE"],
+            "cpu": "512",
+            "memory": "1024",
+            "executionRoleArn": "arn:aws:iam::${ACCOUNT_ID}:role/LabRole",
+            "taskRoleArn": "arn:aws:iam::${ACCOUNT_ID}:role/LabRole",
+            "containerDefinitions": [{
+              "name": "despachos",
+              "image": "${ECR_REGISTRY}/innovatech-despachos:latest",
+              "portMappings": [{"containerPort": 8080, "protocol": "tcp"}],
+              "environment": [
+                {"name": "SERVER_PORT", "value": "8080"},
+                {"name": "SPRING_DATASOURCE_URL", "value": "jdbc:mysql://innovatech-mysql.cotyuun7ptxj.us-east-1.rds.amazonaws.com:3306/despacho_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true"},
+                {"name": "SPRING_DATASOURCE_USERNAME", "value": "appuser"},
+                {"name": "SPRING_DATASOURCE_PASSWORD", "value": "appuser123"},
+                {"name": "SPRING_JPA_HIBERNATE_DDL_AUTO", "value": "update"}
+              ],
+              "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                  "awslogs-group": "/ecs/innovatech-despachos",
+                  "awslogs-region": "us-east-1",
+                  "awslogs-stream-prefix": "ecs",
+                  "awslogs-create-group": "true"
+                }
+              }
+            }]
+          }
+          TASKDEF
+
+          aws ecs register-task-definition --cli-input-json file:///tmp/despachos-td.json
+
+          # Crear target group si no existe
+          TG_ARN=$(aws elbv2 describe-target-groups --names tg-despachos \
+            --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "")
+
+          if [ -z "$TG_ARN" ] || [ "$TG_ARN" = "None" ]; then
+            TG_ARN=$(aws elbv2 create-target-group \
+              --name tg-despachos \
+              --protocol HTTP \
+              --port 8080 \
+              --vpc-id $VPC_ID \
+              --target-type ip \
+              --health-check-protocol HTTP \
+              --health-check-path /api/v1/despachos \
+              --health-check-interval-seconds 30 \
+              --health-check-timeout-seconds 10 \
+              --healthy-threshold-count 2 \
+              --unhealthy-threshold-count 3 \
+              --query 'TargetGroups[0].TargetGroupArn' \
+              --output text)
+            echo "Target group creado: $TG_ARN"
+          else
+            echo "Target group ya existe: $TG_ARN"
+          fi
+
+          # Obtener ALB y listener
+          ALB_ARN=$(aws elbv2 describe-load-balancers \
+            --query 'LoadBalancers[?contains(DNSName, `innovatech-alb`)].LoadBalancerArn' --output text)
+          LISTENER_ARN=$(aws elbv2 describe-listeners \
+            --load-balancer-arn $ALB_ARN \
+            --query 'Listeners[?Port==`80`].ListenerArn' --output text)
+
+          # Agregar regla ALB para /api/v1/despachos* con prioridad 3
+          RULE_EXISTS=$(aws elbv2 describe-rules --listener-arn $LISTENER_ARN \
+            --query 'Rules[?Conditions[?Values[0]=="/api/v1/despachos*"]].RuleArn' --output text)
+
+          if [ -z "$RULE_EXISTS" ] || [ "$RULE_EXISTS" = "None" ]; then
+            aws elbv2 create-rule \
+              --listener-arn $LISTENER_ARN \
+              --priority 3 \
+              --conditions '[{"Field":"path-pattern","Values":["/api/v1/despachos*"]}]' \
+              --actions "[{\"Type\":\"forward\",\"TargetGroupArn\":\"$TG_ARN\"}]"
+            echo "Regla ALB creada para /api/v1/despachos*"
+          else
+            echo "Regla ALB ya existe"
+          fi
+
+          # Crear o actualizar servicio ECS
+          SERVICE_STATUS=$(aws ecs describe-services --cluster innovatech-cluster --services despachos-service \
+            --query 'services[0].status' --output text 2>/dev/null)
+
+          if [ "$SERVICE_STATUS" = "ACTIVE" ]; then
+            aws ecs update-service \
+              --cluster innovatech-cluster \
+              --service despachos-service \
+              --task-definition innovatech-despachos \
+              --force-new-deployment
+            echo "Servicio despachos actualizado"
+          else
+            aws ecs create-service \
+              --cluster innovatech-cluster \
+              --service-name despachos-service \
+              --task-definition innovatech-despachos \
+              --desired-count 1 \
+              --launch-type FARGATE \
+              --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SG_ID],assignPublicIp=ENABLED}" \
+              --load-balancers "targetGroupArn=$TG_ARN,containerName=despachos,containerPort=8080" \
+              --health-check-grace-period-seconds 120
+            echo "Servicio despachos creado"
+          fi
