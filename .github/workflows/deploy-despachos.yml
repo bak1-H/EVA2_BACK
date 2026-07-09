@@ -13,6 +13,19 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Run despachos tests
+        working-directory: back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
+        run: |
+          chmod +x mvnw
+          ./mvnw -B -Dspring.profiles.active=test test
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -38,6 +51,7 @@ jobs:
       - name: Setup AWS Infrastructure and Deploy Despachos Service
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          DESPACHOS_DB_PASSWORD: ${{ secrets.DESPACHOS_DB_PASSWORD }}
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           VPC_ID=$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query 'Vpcs[0].VpcId' --output text)
@@ -66,9 +80,9 @@ jobs:
               "portMappings": [{"containerPort": 8080, "protocol": "tcp"}],
               "environment": [
                 {"name": "SERVER_PORT", "value": "8080"},
-                {"name": "SPRING_DATASOURCE_URL", "value": "jdbc:mysql://innovatech-mysql.cotyuun7ptxj.us-east-1.rds.amazonaws.com:3306/despacho_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true"},
+                {"name": "SPRING_DATASOURCE_URL", "value": "jdbc:mysql://innovatech-mysql.cxrrpxldvi1p.us-east-1.rds.amazonaws.com:3306/despacho_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true"},
                 {"name": "SPRING_DATASOURCE_USERNAME", "value": "appuser"},
-                {"name": "SPRING_DATASOURCE_PASSWORD", "value": "appuser"},
+                {"name": "SPRING_DATASOURCE_PASSWORD", "value": "${DESPACHOS_DB_PASSWORD}"},
                 {"name": "SPRING_JPA_HIBERNATE_DDL_AUTO", "value": "update"}
               ],
               "logConfiguration": {
